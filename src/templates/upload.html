@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        function setExpiration(expiresIn) {
+            if (expiresIn !== null) {
+                document.getElementsByName("expiresIn")[0].value = expiresIn;
+            }
+        }
+        function showPassword() {
+            var x = document.getElementById("download_password"); // Get the input element
+            if (x.type === "password") {
+                x.type = "text"; // Change type to "text" to show the password
+            } else {
+                x.type = "password"; // Change type back to "password" to hide it
+            }
+        }
+    </script>
+</head>
+<body>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <br>
+        <input type="number" name="expiresIn" placeholder="Expiration time in seconds">
+        <input type="submit" value="Upload">
+        <br>
+        <button type="button" onclick="setExpiration(300);">5 minutes</button>
+        <button type="button" onclick="setExpiration(3600);">1 hour</button>
+        <button type="button" onclick="setExpiration(86400);">1 day</button>
+        <br>
+        <input type="password" name="password" id="download_password" placeholder="Password (optional)">
+        <input type="checkbox" onclick="showPassword()"> Show Password
+        <br>
+        <a href="/">Return to Home</a>
+    </form>
+</body>
+</html>
