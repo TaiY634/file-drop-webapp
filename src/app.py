@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_from_directory, send_file
+from flask import Flask, render_template, request, session, send_file 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
@@ -9,6 +9,7 @@ import sql
 
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -20,27 +21,47 @@ def index():
     return render_template("index.html")
 
 @app.route("/download/<filename>", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("20 per minute")
 def download(filename):
-    if request.method == "POST":
-        password = request.form.get("password", "")
-        stored_hash = sql.get_password_hash(filename)
-        if not stored_hash or not verify_password(password, stored_hash):
-            return render_template("password.html", filename=filename, error="Incorrect password.")
-        return render_template("download.html", filename=filename)
+    filepath = sql.get_filepath_by_filename(filename)
+    if not filepath or sql.is_file_expired(filename):
+        return render_template("error.html", error="File has expired or does not exist."), 404
+
+    authenticated = session.get(f'authenticated_{filename}', False)
+
+        
+    error = None
+    has_password = sql.has_password(filename)
+
+    # If password-protected, verify
+    if has_password:
+        if request.method == "POST":
+            if authenticated:
+                return send_file(filepath, as_attachment=True)
+            password = request.form.get("password", "")
+            stored_hash = sql.get_password_hash(filename)
+            if not stored_hash or not verify_password(password, stored_hash):
+                error = "Incorrect password."
+            else:
+                # Password correct, send file
+                session[f'authenticated_{filename}'] = True
+                return render_template("download.html", filename=filename, error=None, has_password=has_password, authenticated=True)
     
-    if sql.is_file_expired(filename):
-        return render_template("error.html", error ="File has expired or does not exist."), 404
-    if sql.has_password(filename):
-        return render_template("password.html", filename=filename)
-    
-    return render_template("download.html", filename=filename)
+        return render_template("download.html", filename=filename, error=error, has_password=has_password, authenticated=authenticated)
+    # If not password-protected, show confirmation form
+    else:
+        if request.method == "POST":
+            return send_file(filepath, as_attachment=True)
+        else:
+            return render_template("download.html", filename=filename, has_password=has_password)
 
 @app.route("/files/<filename>")
 def file(filename):
     filepath = sql.get_filepath_by_filename(filename)
     if not filepath:
         return "File not found", 404
+    if sql.is_file_expired(filename):
+        return "File has expired", 404
     print("Downloading file:", filepath)
     return send_file(filepath, as_attachment=True)
 
@@ -49,19 +70,21 @@ def file(filename):
 def upload():
     if request.method == "POST":
         uploaded_file = request.files.get("file")
-        try:
-            filepath = save(uploaded_file)
-        except FileSaveError as e:
-            return str(e), 400
+        if not uploaded_file or uploaded_file.filename == '':
+            raise FileSaveError("No file provided or filename is empty.")
+        
+        name, ext = separate_extension(uploaded_file.filename)
+        filename = f'{name}-{int(time.time())}.{ext}'
+        filepath = save(uploaded_file, filename)
         expires_in = request.form.get("expiresIn", type=int, default=0)
         expire_time = get_expire_time(expires_in)
         password = request.form.get("password", default="")
         hash = hash_password(password) if password else None
-        sql.add_file(uploaded_file.filename, filepath, expire_time, hash)
-        return render_template("upload_success.html", filename=uploaded_file.filename, site_url = request.url_root, filepath=filepath)
-    return render_template("upload.html", name="Apple")
+        sql.add_file(filename, filepath, expire_time, hash)
+        return render_template("upload_success.html", filename=filename, site_url = request.url_root, filepath=filepath)
+    return render_template("upload.html")
 
-@app.route("/drop")
+@app.route("/drop", methods=["GET", "POST"])
 def drop():
     if request.method == "POST":
         sql.drop_files()

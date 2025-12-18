@@ -6,8 +6,18 @@
     <title>Download</title>
 </head>
 <body>
-    <p>Download page for {{filename}}</p>
-    <p><a href="/files/{{filename}}" download>Click here to download the file</a></p>
+    <h2>Download {{ filename }}</h2>
+    {% if error %}
+        <p style="color:red">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+        {% if authenticated %}
+            <button type="submit">Download</button>
+        {% elif has_password %}
+            <label>Password: <input type="password" name="password"></label><br>
+            <button type="submit">Enter</button>
+        {% endif %}
+    </form>
     <p><a href="/">Return to Home</a></p>
 </body>
 </html>

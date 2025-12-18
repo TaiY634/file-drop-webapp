@@ -9,11 +9,8 @@ def separate_extension(filename):
     name, ext = filename.rsplit('.', 1)
     return name, ext
 
-def save(file):
-    if not file or file.filename == '':
-        raise FileSaveError("No file provided or filename is empty.")
-    name, ext = separate_extension(file.filename)
-    filepath = f"./uploads/{name}-{int(time.time())}.{ext}"
+def save(file, filename):
+    filepath = f"./uploads/{filename}"
     file.save(filepath)
     return filepath
 
