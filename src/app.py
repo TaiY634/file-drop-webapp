@@ -27,11 +27,14 @@ def download(filename):
     if not filepath or sql.is_file_expired(filename):
         return render_template("error.html", error="File has expired or does not exist."), 404
 
-    authenticated = session.get(f'authenticated_{filename}', False)
 
         
     error = None
     has_password = sql.has_password(filename)
+    authenticated = session.get(f'authenticated_{filename}', not has_password)
+    print("filename:", filename)
+    print("Has password:", has_password)
+    print("Authenticated:", authenticated)
 
     # If password-protected, verify
     if has_password:
@@ -53,7 +56,7 @@ def download(filename):
         if request.method == "POST":
             return send_file(filepath, as_attachment=True)
         else:
-            return render_template("download.html", filename=filename, has_password=has_password)
+            return render_template("download.html", filename=filename, has_password=has_password, authenticated=authenticated)
 
 @app.route("/files/<filename>")
 def file(filename):
@@ -71,7 +74,7 @@ def upload():
     if request.method == "POST":
         uploaded_file = request.files.get("file")
         if not uploaded_file or uploaded_file.filename == '':
-            raise FileSaveError("No file provided or filename is empty.")
+            return render_template("error.html", error="No file provided or filename is empty."), 400
         
         name, ext = separate_extension(uploaded_file.filename)
         filename = f'{name}-{int(time.time())}.{ext}'
@@ -95,6 +98,16 @@ def drop():
     </form>
     '''
 
+@app.route("/admin")
+def admin():
+    files = sql.get_all_files()
+    return render_template("admin.html", files=files)
+
+@app.route("/update_deleted_status")
+def update_deleted_status():
+    sql.update_all_deleted_status()
+    return "" \
+    "<body>Deleted status updated. <br><a href='/admin'>Back to Admin</a></body>"
 
 if __name__ == "__main__":
     app.run(debug=True)

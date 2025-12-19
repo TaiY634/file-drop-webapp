@@ -52,8 +52,24 @@ def get_password_hash(filename):
         return None
     return row[0]
 
+def update_all_deleted_status():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    current_time = int(time.time())
+    cursor.execute("UPDATE files SET deleted = 1 WHERE expire_time > 0 AND expire_time <= ?", (current_time,))
+    conn.commit()
+    conn.close()
+
+def edit_cell(filename, column, new_value):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    query = f"UPDATE files SET {column} = ? WHERE filename = ?"
+    cursor.execute(query, (new_value, filename))
+    conn.commit()
+    conn.close()
 
 
+#///////
 def is_file_expired(filename):
     conn = get_db_connection()
     cursor = conn.cursor()
