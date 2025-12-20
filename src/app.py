@@ -6,6 +6,7 @@ import os
 
 from helpers.file_helpers import is_file_expired, separate_extension, get_expire_time
 from helpers.password import *
+from helpers.custom_exceptions import DuplicateIDError
 
 import database
 import filestorage
@@ -16,7 +17,7 @@ app.secret_key = os.urandom(24)
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['USE_LOCAL'] = True  # Set to False to use S3 and DynamoDB
-app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'rar'])
+app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'zip', 'rar'])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route("/")
@@ -95,7 +96,8 @@ def upload():
             try:
                 db.create(file_id, filename, key, expire_time, downloads=0, attempts=0, password_hash=hash)
                 break
-            except database.DuplicateIDError:
+            except DuplicateIDError:
+                print("Duplicate file_id generated, retrying...")
                 file_id = uuid.uuid4().hex
                 key = f"{file_id}_{filename}"
 
@@ -118,14 +120,15 @@ def drop():
 
 @app.route("/admin")
 def admin():
-    files = sql.get_all_files()
-    return render_template("admin.html", files=files)
+    db = database.get_database(local=app.config['USE_LOCAL'])
+    metadatas = db._get_all_data()
+    return render_template("admin.html", metadatas=metadatas)
 
-@app.route("/update_deleted_status")
-def update_deleted_status():
-    sql.update_all_deleted_status()
-    return "" \
-    "<body>Deleted status updated. <br><a href='/admin'>Back to Admin</a></body>"
+# @app.route("/update_deleted_status")
+# def update_deleted_status():
+#     sql.update_all_deleted_status()
+#     return "" \
+#     "<body>Deleted status updated. <br><a href='/admin'>Back to Admin</a></body>"
 
 if __name__ == "__main__":
     app.run(debug=True)

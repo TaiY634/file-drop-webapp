@@ -7,11 +7,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <a href="/update_deleted_status">Update Deleted Status</a>
+    <!-- <a href="/update_deleted_status">Update Deleted Status</a> -->
     <table id="dbTable">
-        <th>Filename</th><th>Filepath</th><th>Expires At</th><th>Is Deleted</th>
-    {% for file in files %}
-    <tr><td>{{file[1]}}</td><td>{{file[2]}}</td><td>{{file[3]}}</td><td>{{file[4] == 1}}</td></tr>
+        <th>file_id</th><th>filename</th><th>key</th><th>expires_at</th><th>has_password</th>
+    {% for m in metadatas %}
+    <tr><td>{{m[0]}}</td><td>{{m[1]}}</td><td>{{m[2]}}</td><td>{{m[3]}}</td><td>{{m[6] is not none}}</td></tr>
     {% endfor %}
     </table>
     <a href="/">Return to Home</a>

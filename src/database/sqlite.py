@@ -1,6 +1,6 @@
 from .base import DatabaseBase
 import sqlite3
-from sqlite3 import IntegrityError
+from helpers.custom_exceptions import DuplicateIDError
 
 class SQLiteMetadata(DatabaseBase):
 
@@ -12,38 +12,39 @@ class SQLiteMetadata(DatabaseBase):
         return sqlite3.connect(self.db_path)
 
     def _initialize_db(self):
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS metadata (
-                file_id TEXT PRIMARY KEY,
-                filename TEXT NOT NULL,
-                key TEXT NOT NULL,
-                expire_at INTEGER NOT NULL,
-                downloads INTEGER NOT NULL,
-                attempts INTEGER NOT NULL,
-                password_hash TEXT
-            )
-        ''')
-        conn.commit()
-        conn.close()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS metadata (
+                    file_id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    expire_at INTEGER NOT NULL,
+                    downloads INTEGER NOT NULL,
+                    attempts INTEGER NOT NULL,
+                    password_hash TEXT
+                )
+            ''')
 
     def create(self, file_id: str, filename: str, key: str, expire_at: int, downloads: int, attempts: int, password_hash: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO metadata (file_id, filename, key, expire_at, downloads, attempts, password_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (file_id, filename, key, expire_at, downloads, attempts, password_hash))
-        conn.commit()
-        conn.close()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('''
+                    INSERT INTO metadata (file_id, filename, key, expire_at, downloads, attempts, password_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (file_id, filename, key, expire_at, downloads, attempts, password_hash))
+            except sqlite3.IntegrityError as e:
+                if 'UNIQUE constraint failed' in str(e):
+                    raise DuplicateIDError from e
+                else:
+                    raise
 
     def get(self, file_id: str) -> dict:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM metadata WHERE file_id = ?', (file_id,))
-        row = cursor.fetchone()
-        conn.close()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM metadata WHERE file_id = ?', (file_id,))
+            row = cursor.fetchone()
         if row:
             return {
                 'file_id': row[0],
@@ -57,15 +58,20 @@ class SQLiteMetadata(DatabaseBase):
         return {}
 
     def increment_downloads(self, file_id: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('UPDATE metadata SET downloads = downloads + 1 WHERE file_id = ?', (file_id,))
-        conn.commit()
-        conn.close()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE metadata SET downloads = downloads + 1 WHERE file_id = ?', (file_id,))
 
     def increment_attempts(self, file_id: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('UPDATE metadata SET attempts = attempts + 1 WHERE file_id = ?', (file_id,))
-        conn.commit()
-        conn.close()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE metadata SET attempts = attempts + 1 WHERE file_id = ?', (file_id,))
+
+
+    def _get_all_data(self):
+        """Helper method for testing: retrieves all data from the metadata table."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM metadata')
+            rows = cursor.fetchall()
+            return rows

@@ -1,5 +1,4 @@
 import time
-from database import DuplicateIDError
 
 def is_file_expired(expire_at):
     if expire_at == 0:

@@ -1,17 +1,10 @@
-from .sqlite import SQLiteMetadata, IntegrityError
+from .sqlite import SQLiteMetadata
 from .dynamodb import DynamoDBMetadata
+from sqlite3 import IntegrityError
 
-class DuplicateIDError(Exception):
-    pass
 
 def get_database(*, local: bool, **kwargs):
     if local:
-        try:
-            return SQLiteMetadata(**kwargs)
-        except IntegrityError as e:
-            if 'UNIQUE constraint failed' in str(e):
-                raise DuplicateIDError from e
-            else:
-                raise
+        return SQLiteMetadata(**kwargs)
     else:
         return DynamoDBMetadata(**kwargs)
