@@ -1,37 +1,45 @@
+import uuid
 from flask import Flask, render_template, request, session, send_file 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
 
-from helpers import *
-from password import *
-import sql
+from helpers.file_helpers import is_file_expired, separate_extension, get_expire_time
+from helpers.password import *
+
+import database
+import filestorage
 
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['USE_LOCAL'] = True  # Set to False to use S3 and DynamoDB
+app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'rar'])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route("/")
 def index():
-    sql.create_file_table()
-    print(sql.get_all_files())
     return render_template("index.html")
 
-@app.route("/download/<filename>", methods=["GET", "POST"])
+@app.route("/download/<file_id>", methods=["GET", "POST"])
 @limiter.limit("20 per minute")
-def download(filename):
-    filepath = sql.get_filepath_by_filename(filename)
-    if not filepath or sql.is_file_expired(filename):
+def download(file_id):
+    db = database.get_database(local=app.config['USE_LOCAL'])
+    storage = filestorage.get_filestorage(local=app.config['USE_LOCAL'])
+    file_metadata = db.get(file_id)
+    if not file_metadata or is_file_expired(file_metadata['expire_at']):
         return render_template("error.html", error="File has expired or does not exist."), 404
 
 
         
     error = None
-    has_password = sql.has_password(filename)
-    authenticated = session.get(f'authenticated_{filename}', not has_password)
+    has_password = file_metadata['password_hash'] is not None
+    authenticated = session.get(f'authenticated_{file_metadata["file_id"]}', not has_password)
+
+    filename = file_metadata['filename']
+    key = file_metadata['key']
     print("filename:", filename)
     print("Has password:", has_password)
     print("Authenticated:", authenticated)
@@ -40,33 +48,24 @@ def download(filename):
     if has_password:
         if request.method == "POST":
             if authenticated:
-                return send_file(filepath, as_attachment=True)
+                return storage.download(key, filename=filename)
             password = request.form.get("password", "")
-            stored_hash = sql.get_password_hash(filename)
+            stored_hash = file_metadata['password_hash']
             if not stored_hash or not verify_password(password, stored_hash):
                 error = "Incorrect password."
             else:
                 # Password correct, send file
-                session[f'authenticated_{filename}'] = True
+                session[f'authenticated_{file_metadata["file_id"]}'] = True
                 return render_template("download.html", filename=filename, error=None, has_password=has_password, authenticated=True)
     
         return render_template("download.html", filename=filename, error=error, has_password=has_password, authenticated=authenticated)
     # If not password-protected, show confirmation form
     else:
         if request.method == "POST":
-            return send_file(filepath, as_attachment=True)
+            return storage.download(key, filename=filename)
         else:
             return render_template("download.html", filename=filename, has_password=has_password, authenticated=authenticated)
 
-@app.route("/files/<filename>")
-def file(filename):
-    filepath = sql.get_filepath_by_filename(filename)
-    if not filepath:
-        return "File not found", 404
-    if sql.is_file_expired(filename):
-        return "File has expired", 404
-    print("Downloading file:", filepath)
-    return send_file(filepath, as_attachment=True)
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -76,15 +75,34 @@ def upload():
         if not uploaded_file or uploaded_file.filename == '':
             return render_template("error.html", error="No file provided or filename is empty."), 400
         
-        name, ext = separate_extension(uploaded_file.filename)
-        filename = f'{name}-{int(time.time())}.{ext}'
-        filepath = save(uploaded_file, filename)
+        filename = uploaded_file.filename
+        _, ext = separate_extension(filename)
+
+        if ext not in app.config['ALLOWED_EXTENSIONS']:
+            return render_template("error.html", error=f"File type {ext} not allowed."), 400
+        
         expires_in = request.form.get("expiresIn", type=int, default=0)
         expire_time = get_expire_time(expires_in)
         password = request.form.get("password", default="")
         hash = hash_password(password) if password else None
-        sql.add_file(filename, filepath, expire_time, hash)
-        return render_template("upload_success.html", filename=filename, site_url = request.url_root, filepath=filepath)
+        file_id = uuid.uuid4().hex
+        key = f"{file_id}_{filename}"
+        
+        db = database.get_database(local=app.config['USE_LOCAL'])
+        storage = filestorage.get_filestorage(local=app.config['USE_LOCAL'])
+
+        while True:
+            try:
+                db.create(file_id, filename, key, expire_time, downloads=0, attempts=0, password_hash=hash)
+                break
+            except database.DuplicateIDError:
+                file_id = uuid.uuid4().hex
+                key = f"{file_id}_{filename}"
+
+        storage.save(uploaded_file, key)
+            
+        download_link = request.url_root + "download/" + file_id
+        return render_template("upload_success.html", filename=filename, download_link=download_link)
     return render_template("upload.html")
 
 @app.route("/drop", methods=["GET", "POST"])
