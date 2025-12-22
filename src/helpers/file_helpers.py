@@ -1,7 +1,7 @@
 import time
 
 def is_file_expired(expire_at):
-    if expire_at == 0:
+    if expire_at == -1:
         return False
     current_time = int(time.time())
     return current_time >= expire_at

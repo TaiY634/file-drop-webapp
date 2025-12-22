@@ -8,3 +8,44 @@
     border: 1px; 
     border-style: solid;
 }
+
+
+.center-flex {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* credit to https://uiverse.io/vikiWayne/slimy-horse-19 */
+#upload-btn {
+    cursor: pointer;
+    color: #2c9caf;
+    transition: all 1000ms;
+    position: relative;
+    overflow: hidden;
+    outline: 2px solid #2c9caf;
+}
+
+#upload-btn:hover {
+    color: #ffffff;
+    transform: scale(1.1);
+    outline: 2px solid #70bdca;
+    box-shadow: 4px 5px 17px -4px #268391;
+}
+
+#upload-btn::before {
+    content: "";
+    position: absolute;
+    left: -50px;
+    top: 0;
+    width: 0;
+    height: 100%;
+    background-color: #2c9caf;
+    transform: skewX(45deg);
+    z-index: -1;
+    transition: width 1000ms;
+}
+
+#upload-btn:hover::before {
+    width: 250%;
+}

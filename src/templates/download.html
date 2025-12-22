@@ -1,23 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Download</title>
-</head>
-<body>
-    <h2>Download {{ filename }}</h2>
-    {% if error %}
-        <p style="color:red">{{ error }}</p>
-    {% endif %}
-    <form method="post">
-        {% if authenticated %}
-            <button type="submit">Download</button>
-        {% elif has_password %}
-            <label>Password: <input type="password" name="password"></label><br>
-            <button type="submit">Enter</button>
-        {% endif %}
-    </form>
-    <p><a href="/">Return to Home</a></p>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download {{filename}}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <script>
+      function showPassword(event) {
+        var x = document.getElementById("download_password"); // Get the input element
+        var button = event.target; // Get the button that was clicked
+        if (x.type === "password") {
+          x.type = "text"; // Change type to "text" to show the password
+          button.innerText = "Hide Password"; // Update button text
+        } else {
+          x.type = "password"; // Change type back to "password" to hide it
+          button.innerText = "Show Password"; // Update button text
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <form method="post" enctype="multipart/form-data">
+        <div class="row pt-5 pb-5 vh-100 justify-content-center">
+          <div class="col-10 text-center center-flex">
+            <div class="container bg-white h-75">
+              <div class="row my-3" style="height: 20%">
+                <div class="col-12 center-flex" style="max-height: 100%">
+                  <p
+                    style="
+                      font-size: calc(1vw + 1vh);
+                      max-height: 100%;
+                      overflow: auto;
+                      text-overflow: ellipsis;
+                      word-break: break-all;
+                    "
+                  >
+                    Download {{filename}}
+                  </p>
+                </div>
+              </div>
+
+              {% if not authenticated and has_password %}
+              <div class="row my-3" style="height: 20%">
+                <div class="col-10 center-flex">
+                  <input
+                    class="w-100 h-75 m-1"
+                    style="font-size: 2vw"
+                    type="password"
+                    min="0"
+                    max="604800"
+                    placeholder="Enter password"
+                    id="download_password"
+                    name="password"
+                  />
+                </div>
+                <div class="col-2 center-flex">
+                  <button
+                    class="btn btn-primary w-75 h-75 center-flex"
+                    style="font-size: 1vw"
+                    type="button"
+                    onclick="showPassword(event)"
+                  >
+                    Show Password
+                  </button>
+                </div>
+              </div>
+              <div class="row my-3" style="height: 25%">
+                <div class="col-6 offset-3 center-flex">
+                  <button
+                    type="submit"
+                    class="btn btn-primary w-100 h-100 text-center center-flex"
+                    style="font-size: calc(2.5vh + 3vw)"
+                  >
+                  ENTER
+                  </button>
+                </div>
+              </div>
+              {% else %}
+
+              <div class="row my-3" style="height: 25%">
+                <div class="col-6 offset-3 center-flex">
+                  <input
+                    type="submit"
+                    class="btn btn-primary w-100 h-100 text-center center-flex"
+                    style="font-size: calc(2.5vh + 3vw)"
+                    value="DOWNLOAD"
+                  />
+                </div>
+              </div>
+              {% endif %}
+
+              <div class="row">
+                <div class="col-2">
+                  <a
+                    type="button"
+                    class="btn btn-secondary w-100 h-100 text-center"
+                    style="font-size: calc(0.5vh + 0.75vw)"
+                    href="/"
+                  >
+                    Cancel
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <style>
+      .center-flex {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    </style>
+  </body>
 </html>

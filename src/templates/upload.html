@@ -1,40 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>File Upload</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/static/css/styles.css"> </link>
     <script>
-        function setExpiration(expiresIn) {
-            if (expiresIn !== null) {
-                document.getElementsByName("expiresIn")[0].value = expiresIn;
-            }
+      function setExpiration(expiresIn) {
+        if (expiresIn !== null) {
+          document.getElementById("expiresIn").value = expiresIn;
         }
-        function showPassword() {
-            var x = document.getElementById("download_password"); // Get the input element
-            if (x.type === "password") {
-                x.type = "text"; // Change type to "text" to show the password
-            } else {
-                x.type = "password"; // Change type back to "password" to hide it
-            }
+      }
+      function showPassword(event) {
+        var x = document.getElementById("download_password"); // Get the input element
+        var button = event.target; // Get the button that was clicked
+        if (x.type === "password") {
+          x.type = "text"; // Change type to "text" to show the password
+          button.innerText = "Hide Password"; // Update button text
+        } else {
+          x.type = "password"; // Change type back to "password" to hide it
+          button.innerText = "Show Password"; // Update button text
         }
+      }
     </script>
-</head>
-<body>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <br>
-        <input type="number" name="expiresIn" placeholder="Expiration time in seconds">
-        <input type="submit" value="Upload">
-        <br>
-        <button type="button" onclick="setExpiration(300);">5 minutes</button>
-        <button type="button" onclick="setExpiration(3600);">1 hour</button>
-        <button type="button" onclick="setExpiration(86400);">1 day</button>
-        <br>
-        <input type="password" name="password" id="download_password" placeholder="Password (optional)">
-        <input type="checkbox" onclick="showPassword()"> Show Password
-        <br>
-        <a href="/">Return to Home</a>
-    </form>
-</body>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <div class="row pt-5 pb-5 vh-100 justify-content-center">
+          <div class="col-10 text-center center-flex">
+            <div class="container bg-white h-75">
+              <div class="row my-3" style="height: 15%">
+                <div class="col-12 center-flex">
+                  <input
+                    type="file"
+                    class="w-100 h-75 m-1"
+                    style="font-size: 2vw"
+                    name="file"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="row my-3" style="height: 15%">
+                <div class="col-10 center-flex">
+                  <input
+                    class="w-100 h-75 m-1"
+                    style="font-size: 2vw"
+                    type="password"
+                    min="0"
+                    max="604800"
+                    placeholder="password (optional)"
+                    id="download_password"
+                    name="password"
+                  />
+                </div>
+                <div class="col-2 center-flex">
+                  <button
+                    class="btn btn-primary w-75 h-75 center-flex"
+                    style="font-size: 1vw"
+                    type="button"
+                    onclick="showPassword(event)"
+                  >
+                    Show Password
+                  </button>
+                </div>
+              </div>
+              <div class="row my-3" style="height: 15%">
+                <div class="col-6 center-flex">
+                  <input
+                    class="w-100 h-75 m-1"
+                    style="font-size: 2vw"
+                    type="number"
+                    min="0"
+                    max="604800"
+                    placeholder="expires in"
+                    id="expiresIn"
+                    name="expiresIn"
+                    required
+                  />
+                  seconds
+                </div>
+                <div class="col-5 offset-1 center-flex">
+                  <button
+                    type="button"
+                    class="btn btn-primary w-25 m-1 h-75 center-flex"
+                    style="font-size: calc(0.75vw + 0.5vh)"
+                    onclick="setExpiration(600)"
+                  >
+                    10 minutes
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary w-25 m-1 h-75 center-flex"
+                    style="font-size: calc(0.75vw + 0.5vh)"
+                    onclick="setExpiration(3600)"
+                  >
+                    1 hour
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary w-25 m-1 h-75 center-flex"
+                    style="font-size: calc(0.75vw + 0.5vh)"
+                    onclick="setExpiration(86400)"
+                  >
+                    1 day
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary w-25 m-1 h-75 center-flex"
+                    style="font-size: calc(0.75vw + 0.5vh)"
+                    onclick="setExpiration(604800)"
+                  >
+                    1 week
+                  </button>
+                </div>
+              </div>
+              <div class="row my-3" style="height: 25%">
+                <div class="col-6 offset-3 center-flex">
+                  <button
+                    type="submit"
+                    class="btn w-100 h-100 text-center center-flex"
+                    style="font-size: calc(2.5vh + 3vw)"
+                    id="upload-btn">UPLOAD
+                  </button>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-2">
+                  <a
+                    type="button"
+                    class="btn btn-secondary w-100 h-100 text-center"
+                    style="font-size: calc(0.5vh + 0.75vw)"
+                    href="/"
+                  >
+                    Cancel
+                </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </body>
 </html>

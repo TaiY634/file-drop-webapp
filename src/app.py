@@ -107,16 +107,16 @@ def upload():
         return render_template("upload_success.html", filename=filename, download_link=download_link)
     return render_template("upload.html")
 
-@app.route("/drop", methods=["GET", "POST"])
-def drop():
-    if request.method == "POST":
-        sql.drop_files()
-        return "File table dropped."
-    return '''
-    <form method="POST">
-        <button type="submit">Drop Files</button>
-    </form>
-    '''
+# @app.route("/drop", methods=["GET", "POST"])
+# def drop():
+#     if request.method == "POST":
+#         sql.drop_files()
+#         return "File table dropped."
+#     return '''
+#     <form method="POST">
+#         <button type="submit">Drop Files</button>
+#     </form>
+#     '''
 
 @app.route("/admin")
 def admin():
