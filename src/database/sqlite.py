@@ -33,7 +33,7 @@ class SQLiteMetadata(DatabaseBase):
                 cursor.execute('''
                     INSERT INTO metadata (file_id, filename, key, expire_at, downloads, attempts, password_hash)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (file_id, filename, key, expire_at, downloads, attempts, password_hash))
+                ''', (file_id, filename, key, expire_at, downloads, attempts, str(password_hash)))
             except sqlite3.IntegrityError as e:
                 if 'UNIQUE constraint failed' in str(e):
                     raise DuplicateIDError from e

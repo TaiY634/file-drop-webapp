@@ -43,6 +43,8 @@ def download(file_id):
     key = file_metadata['key']
     print("filename:", filename)
     print("Has password:", has_password)
+    print('Stored hash type:', type(file_metadata['password_hash']))
+    print('Stored hash value:', file_metadata['password_hash'])
     print("Authenticated:", authenticated)
 
     # If password-protected, verify
