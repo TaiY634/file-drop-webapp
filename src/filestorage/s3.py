@@ -12,9 +12,10 @@ class S3FileStorage(FileStorageBase):
         self.s3.upload_fileobj(file, self.bucket_name, key)
 
     def download(self, key: str, filename: str | None = None) -> str:
+        download_filename = filename if filename else key
         presigned_url = self.s3.generate_presigned_url(
             'get_object',
-            Params={'Bucket': self.bucket_name, 'Key': key},
+            Params={'Bucket': self.bucket_name, 'Key': key, 'ResponseContentDisposition': f'attachment; filename={download_filename}'},
             ExpiresIn=5  # URL valid for 5 seconds
         )
         return redirect(presigned_url)

@@ -10,18 +10,25 @@ from helpers.custom_exceptions import DuplicateIDError
 
 import database
 import filestorage
-
+import argparse
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['USE_LOCAL'] = True  # Set to False to use S3 and DynamoDB
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'zip', 'rar'])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--no-use-local', action='store_true', help="Use AWS S3/DynamoDB instead of local storage")
+args = parser.parse_args()
+
+app.config['USE_LOCAL'] = not args.no_use_local  # Set to False to use S3 and DynamoDB
+
 @app.route("/")
 def index():
+    print('using local storage:', app.config['USE_LOCAL'])
     return render_template("index.html")
 
 @app.route("/download/<file_id>", methods=["GET", "POST"])
@@ -41,11 +48,11 @@ def download(file_id):
 
     filename = file_metadata['filename']
     key = file_metadata['key']
-    print("filename:", filename)
-    print("Has password:", has_password)
-    print('Stored hash type:', type(file_metadata['password_hash']))
-    print('Stored hash value:', file_metadata['password_hash'])
-    print("Authenticated:", authenticated)
+    # print("filename:", filename)
+    # print("Has password:", has_password)
+    # print('Stored hash type:', type(file_metadata['password_hash']))
+    # print('Stored hash value:', file_metadata['password_hash'])
+    # print("Authenticated:", authenticated)
 
     # If password-protected, verify
     if has_password:
