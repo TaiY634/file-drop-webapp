@@ -4,7 +4,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
 
-from helpers.file_helpers import is_file_expired, separate_extension, get_expire_time
+from helpers.file_helpers import is_file_expired, separate_extension, get_expire_time, calculate_token_increment
 from helpers.password import *
 from helpers.custom_exceptions import DuplicateIDError
 
@@ -26,6 +26,9 @@ args = parser.parse_args()
 
 app.config['USE_LOCAL'] = not args.no_use_local  # Set to False to use S3 and DynamoDB
 
+CORRECT_PASSWORD_TOKEN_CONSUME = 1
+INCORRECT_PASSWORD_TOKEN_CONSUME = 5
+
 @app.route("/")
 def index():
     print('using local storage:', app.config['USE_LOCAL'])
@@ -36,11 +39,15 @@ def index():
 def download(file_id):
     db = database.get_database(local=app.config['USE_LOCAL'])
     storage = filestorage.get_filestorage(local=app.config['USE_LOCAL'])
+
     file_metadata = db.get(file_id)
     if not file_metadata or is_file_expired(file_metadata['expire_at']):
         return render_template("error.html", error="File has expired or does not exist."), 404
 
-
+    increment_count, new_refill_time = calculate_token_increment(file_metadata['last_token_refill'], file_metadata['token_increment_interval'])
+    db.refill_tokens(file_id, count=increment_count, update_time=new_refill_time)
+    if not db.has_enough_token(file_id, INCORRECT_PASSWORD_TOKEN_CONSUME):
+        return render_template("error.html", error="Please try again later."), 429
         
     error = None
     has_password = file_metadata['password_hash'] is not None
@@ -58,20 +65,23 @@ def download(file_id):
     if has_password:
         if request.method == "POST":
             if authenticated:
+                db.consume_token(file_id, CORRECT_PASSWORD_TOKEN_CONSUME)
                 return storage.download(key, filename=filename)
             password = request.form.get("password", "")
             stored_hash = file_metadata['password_hash']
             if not stored_hash or not verify_password(password, stored_hash):
                 error = "Incorrect password."
+                db.consume_token(file_id, INCORRECT_PASSWORD_TOKEN_CONSUME)
             else:
                 # Password correct, send file
                 session[f'authenticated_{file_metadata["file_id"]}'] = True
-                return render_template("download.html", filename=filename, error=None, has_password=has_password, authenticated=True)
+                return render_template("download.html", filename=filename,  has_password=has_password, authenticated=True)
     
         return render_template("download.html", filename=filename, error=error, has_password=has_password, authenticated=authenticated)
     # If not password-protected, show confirmation form
     else:
         if request.method == "POST":
+            db.consume_token(file_id, CORRECT_PASSWORD_TOKEN_CONSUME)
             return storage.download(key, filename=filename)
         else:
             return render_template("download.html", filename=filename, has_password=has_password, authenticated=authenticated)
@@ -103,7 +113,7 @@ def upload():
 
         while True:
             try:
-                db.create(file_id, filename, key, expire_time, downloads=0, attempts=0, password_hash=hash)
+                db.create(file_id, filename, key, expire_time, password_hash=hash)
                 break
             except DuplicateIDError:
                 print("Duplicate file_id generated, retrying...")

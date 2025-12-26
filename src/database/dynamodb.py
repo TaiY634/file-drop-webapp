@@ -17,9 +17,11 @@ class DynamoDBMetadata(DatabaseBase):
                 'filename': filename,
                 'key': key,
                 'expire_at': expire_at,
-                'downloads': downloads,
-                'attempts': attempts,
-                'password_hash': str(password_hash)
+                'password_hash': str(password_hash),
+                'tokens': self.TOKEN_CAP,
+                'token_cap': self.TOKEN_CAP,
+                'last_token_refill': 0,
+                'token_increment_interval': self.TOKEN_INCREMENT_INTERVAL
             }
         try:
             self.table.put_item(
@@ -41,22 +43,56 @@ class DynamoDBMetadata(DatabaseBase):
                 'filename': item['filename'],
                 'key': item['key'],
                 'expire_at': item['expire_at'],
-                'downloads': item['downloads'],
-                'attempts': item['attempts'],
-                'password_hash': item['password_hash']
+                'password_hash': item['password_hash'],
+                'tokens': item['tokens'],
+                'token_cap': item['token_cap'],
+                'last_token_refill': item['last_token_refill'],
+                'token_increment_interval': item['token_increment_interval']
             }
         return {}
 
-    def increment_downloads(self, file_id: str) -> None:
-        self.table.update_item(
-            Key={'file_id': file_id},
-            UpdateExpression='SET downloads = downloads + :inc',
-            ExpressionAttributeValues={':inc': 1}
-        )
+    def refill_tokens(self, file_id, count, update_time):
+        if count <= 0:
+            return
+        response = self.table.get_item(Key={'file_id': file_id})
+        item = response.get('Item')
+        if not item:
+            return
+        tokens = item['tokens']
+        token_cap = item['token_cap']
+        if count > 0:
+            new_tokens = min(token_cap, tokens + count)
+            self.table.update_item(
+                Key={'file_id': file_id},
+                UpdateExpression='SET tokens = :tokens, last_token_refill = :last_token_refill',
+                ExpressionAttributeValues={
+                    ':tokens': new_tokens,
+                    ':last_token_refill': update_time
+                }
+            )
 
-    def increment_attempts(self, file_id: str) -> None:
-        self.table.update_item(
-            Key={'file_id': file_id},
-            UpdateExpression='SET attempts = attempts + :inc',
-            ExpressionAttributeValues={':inc': 1}
-        )
+    def consume_token(self, file_id: str, count: int = 1) -> bool:  
+        response = self.table.get_item(Key={'file_id': file_id})
+        item = response.get('Item')
+        if not item:
+            return False
+        tokens = item['tokens']
+        if tokens >= count:
+            new_tokens = tokens - count
+            self.table.update_item(
+                Key={'file_id': file_id},
+                UpdateExpression='SET tokens = :tokens',
+                ExpressionAttributeValues={
+                    ':tokens': new_tokens
+                }
+            )
+            return True
+        return False
+    
+    def has_enough_token(self, file_id, count):
+        response = self.table.get_item(Key={'file_id': file_id})
+        item = response.get('Item')
+        if not item:
+            return False
+        tokens = item['tokens']
+        return tokens >= count
